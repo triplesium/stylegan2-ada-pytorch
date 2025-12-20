@@ -37,7 +37,6 @@ def project(
     verbose                    = False,
     device: torch.device
 ):
-    assert target.shape == (G.img_channels, G.img_resolution, G.img_resolution)
 
     def logprint(*args):
         if verbose:
@@ -167,9 +166,6 @@ def run_projection(
     # Load target image.
     target_pil = PIL.Image.open(target_fname).convert('RGB')
     w, h = target_pil.size
-    s = min(w, h)
-    target_pil = target_pil.crop(((w - s) // 2, (h - s) // 2, (w + s) // 2, (h + s) // 2))
-    target_pil = target_pil.resize((G.img_resolution, G.img_resolution), PIL.Image.LANCZOS)
     target_uint8 = np.array(target_pil, dtype=np.uint8)
 
     # Optimize projection.

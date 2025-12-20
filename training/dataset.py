@@ -19,6 +19,7 @@ try:
 except ImportError:
     pyspng = None
 
+from training.util import calc_res
 #----------------------------------------------------------------------------
 
 class Dataset(torch.utils.data.Dataset):
@@ -123,8 +124,15 @@ class Dataset(torch.utils.data.Dataset):
     @property
     def resolution(self):
         assert len(self.image_shape) == 3 # CHW
-        assert self.image_shape[1] == self.image_shape[2]
-        return self.image_shape[1]
+        return calc_res(self.image_shape[1:])
+
+    @property
+    def res_log2(self):
+        return int(np.ceil(np.log2(self.resolution)))
+
+    @property
+    def init_res(self):
+        return [int(s * 2**(2-self.res_log2)) for s in self.image_shape[1:]]
 
     @property
     def label_shape(self):
@@ -176,8 +184,6 @@ class ImageFolderDataset(Dataset):
 
         name = os.path.splitext(os.path.basename(self._path))[0]
         raw_shape = [len(self._image_fnames)] + list(self._load_raw_image(0).shape)
-        if resolution is not None and (raw_shape[2] != resolution or raw_shape[3] != resolution):
-            raise IOError('Image files do not match the specified resolution')
         super().__init__(name=name, raw_shape=raw_shape, **super_kwargs)
 
     @staticmethod

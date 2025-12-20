@@ -414,9 +414,6 @@ def convert_dataset(
         if dataset_attrs is None:
             dataset_attrs = cur_image_attrs
             width = dataset_attrs['width']
-            height = dataset_attrs['height']
-            if width != height:
-                error(f'Image dimensions after scale and crop are required to be square.  Got {width}x{height}')
             if dataset_attrs['channels'] not in [1, 3]:
                 error('Input images must be stored as RGB or grayscale')
             if width != 2 ** int(np.floor(np.log2(width))):

@@ -66,6 +66,8 @@ def setup_training_loop_kwargs(
     workers    = None, # Override number of DataLoader workers: <int>, default = 3
 ):
     args = dnnlib.EasyDict()
+    args.G_kwargs = dnnlib.EasyDict(class_name='training.networks.Generator', z_dim=512, w_dim=512, mapping_kwargs=dnnlib.EasyDict(), synthesis_kwargs=dnnlib.EasyDict())
+    args.D_kwargs = dnnlib.EasyDict(class_name='training.networks.Discriminator', block_kwargs=dnnlib.EasyDict(), mapping_kwargs=dnnlib.EasyDict(), epilogue_kwargs=dnnlib.EasyDict())
 
     # ------------------------------------------
     # General options: gpus, snap, metrics, seed
@@ -108,13 +110,24 @@ def setup_training_loop_kwargs(
     args.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, num_workers=3, prefetch_factor=2)
     try:
         training_set = dnnlib.util.construct_class_by_name(**args.training_set_kwargs) # subclass of training.dataset.Dataset
-        args.training_set_kwargs.resolution = training_set.resolution # be explicit about resolution
+        args.training_set_kwargs.resolution = res = training_set.resolution # be explicit about resolution
         args.training_set_kwargs.use_labels = training_set.has_labels # be explicit about labels
         args.training_set_kwargs.max_size = len(training_set) # be explicit about dataset size
+        image_shape = training_set.image_shape
+        init_res = training_set.init_res
+        res_log2 = training_set.res_log2
         desc = training_set.name
         del training_set # conserve memory
     except IOError as err:
         raise UserError(f'--data: {err}')
+
+
+    if list(init_res) == [4,4]:
+        desc += '-%d' % res
+    else:
+        print('Custom init resolution', init_res)
+        args.G_kwargs.init_res = args.D_kwargs.init_res = list(init_res)
+        desc += '-%dx%d' % (image_shape[2], image_shape[1])
 
     if cond is None:
         cond = False
@@ -173,8 +186,6 @@ def setup_training_loop_kwargs(
         spec.gamma = 0.0002 * (res ** 2) / spec.mb # heuristic formula
         spec.ema = spec.mb * 10 / 32
 
-    args.G_kwargs = dnnlib.EasyDict(class_name='training.networks.Generator', z_dim=512, w_dim=512, mapping_kwargs=dnnlib.EasyDict(), synthesis_kwargs=dnnlib.EasyDict())
-    args.D_kwargs = dnnlib.EasyDict(class_name='training.networks.Discriminator', block_kwargs=dnnlib.EasyDict(), mapping_kwargs=dnnlib.EasyDict(), epilogue_kwargs=dnnlib.EasyDict())
     args.G_kwargs.synthesis_kwargs.channel_base = args.D_kwargs.channel_base = int(spec.fmaps * 32768)
     args.G_kwargs.synthesis_kwargs.channel_max = args.D_kwargs.channel_max = 512
     args.G_kwargs.mapping_kwargs.num_layers = spec.map
