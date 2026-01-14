@@ -963,6 +963,7 @@ class SynthesisNetwork(torch.nn.Module):
         channel_max=512,  # Maximum number of channels in any layer.
         num_fp16_res=0,  # Use FP16 for the N highest resolutions.
         use_separable=True, # Use depthwise separable convolutions?
+        separable_cutoff=16, # Resolution above which to use separable convolutions (inclusive)
         **block_kwargs,  # Arguments for SynthesisBlock.
     ):
         assert img_resolution >= 4 and img_resolution & (img_resolution - 1) == 0
@@ -984,6 +985,10 @@ class SynthesisNetwork(torch.nn.Module):
             out_channels = channels_dict[res]
             use_fp16 = res >= fp16_resolution
             is_last = res == self.img_resolution
+            
+            # Use separable convolutions only if globally enabled AND resolution is high enough
+            use_sep_block = use_separable and (res >= separable_cutoff)
+            
             block = SynthesisBlock(
                 in_channels,
                 out_channels,
@@ -993,7 +998,7 @@ class SynthesisNetwork(torch.nn.Module):
                 img_channels=img_channels,
                 is_last=is_last,
                 use_fp16=use_fp16,
-                use_separable=use_separable,
+                use_separable=use_sep_block,
                 **block_kwargs,
             )
             self.num_ws += block.num_conv
